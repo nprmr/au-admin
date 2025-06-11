@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Kanban Board</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+.board { display: flex; align-items: flex-start; padding: 10px; overflow-x: auto; }
+.column { background: #f1f1f1; border-radius: 4px; width: 200px; padding: 10px; margin-right: 10px; }
+.column h2 { font-size: 16px; margin-top: 0; }
+.tasks { min-height: 100px; }
+.task { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 5px; margin-bottom: 5px; cursor: move; }
+.new-task { padding: 10px; }
+</style>
+</head>
+<body>
+<div class="new-task">
+  <input type="text" id="newTask" placeholder="Новая задача">
+  <button id="addTask">Добавить</button>
+</div>
+<div class="board">
+  <div class="column" data-column="buy">
+    <h2>Покупка автомобиля</h2>
+    <div class="tasks"></div>
+  </div>
+  <div class="column" data-column="port">
+    <h2>Доставка в порт</h2>
+    <div class="tasks"></div>
+  </div>
+  <div class="column" data-column="middle">
+    <h2>Промежуточная страна</h2>
+    <div class="tasks"></div>
+  </div>
+  <div class="column" data-column="to-rf">
+    <h2>Доставка до РФ</h2>
+    <div class="tasks"></div>
+  </div>
+  <div class="column" data-column="customs">
+    <h2>Таможенное оформление</h2>
+    <div class="tasks"></div>
+  </div>
+  <div class="column" data-column="client">
+    <h2>Доставка до клиента</h2>
+    <div class="tasks"></div>
+  </div>
+</div>
+<script>
+const columns = document.querySelectorAll('.tasks');
+let draggedItem = null;
+let draggedFrom = null;
+
+function createTask(text) {
+  const div = document.createElement('div');
+  div.className = 'task';
+  div.draggable = true;
+  div.textContent = text;
+  div.addEventListener('dragstart', handleDragStart);
+  return div;
+}
+
+function handleDragStart() {
+  draggedItem = this;
+  draggedFrom = this.parentElement.parentElement.dataset.column;
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  if (draggedItem) {
+    this.appendChild(draggedItem);
+    fetch('/move', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: `task=${encodeURIComponent(draggedItem.textContent)}&from=${draggedFrom}&to=${this.parentElement.dataset.column}`
+    });
+    draggedItem = null;
+  }
+}
+
+function loadTasks() {
+  fetch('/tasks')
+    .then(r => r.json())
+    .then(data => {
+      for (const [col, list] of Object.entries(data)) {
+        const container = document.querySelector(`[data-column="${col}"] .tasks`);
+        list.forEach(t => container.appendChild(createTask(t)));
+      }
+    });
+}
+
+function addTask() {
+  const input = document.getElementById('newTask');
+  const text = input.value.trim();
+  if (!text) return;
+  const container = document.querySelector('[data-column="buy"] .tasks');
+  container.appendChild(createTask(text));
+  fetch('/add', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `task=${encodeURIComponent(text)}&column=buy`
+  });
+  input.value = '';
+}
+
+document.getElementById('addTask').addEventListener('click', addTask);
+
+columns.forEach(column => {
+  column.addEventListener('dragover', handleDragOver);
+  column.addEventListener('drop', handleDrop);
+});
+
+loadTasks();
+</script>
+</body>
+</html>
