@@ -2,12 +2,21 @@ import http.server
 import socketserver
 import json
 import urllib.parse
+from datetime import datetime
 
 PORT = 8000
 
 # Simple in-memory task storage
+# Each task is a dictionary with keys: title, user, time, place
 TASKS = {
-    "buy": ["Пример задачи"],
+    "buy": [
+        {
+            "title": "Пример задачи",
+            "user": "Иван Иванов",
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "place": ""
+        }
+    ],
     "port": [],
     "middle": [],
     "to-rf": [],
@@ -32,19 +41,32 @@ class KanbanHandler(http.server.SimpleHTTPRequestHandler):
         data = self.rfile.read(length)
         params = urllib.parse.parse_qs(data.decode())
         if self.path == '/move':
-            task = params.get('task', [''])[0]
+            task_data = params.get('task', [''])[0]
             from_col = params.get('from', [''])[0]
             to_col = params.get('to', [''])[0]
-            if task and from_col in TASKS and to_col in TASKS:
+            if task_data and from_col in TASKS and to_col in TASKS:
+                try:
+                    task = json.loads(task_data)
+                except json.JSONDecodeError:
+                    self.send_response(400)
+                    self.end_headers()
+                    return
                 if task in TASKS[from_col]:
                     TASKS[from_col].remove(task)
                 TASKS[to_col].append(task)
             self.send_response(204)
         elif self.path == '/add':
-            task = params.get('task', [''])[0]
+            title = params.get('title', [''])[0]
+            user = params.get('user', [''])[0]
+            place = params.get('place', [''])[0]
             column = params.get('column', ['buy'])[0]
-            if task and column in TASKS:
-                TASKS[column].append(task)
+            if title and user and column in TASKS:
+                TASKS[column].append({
+                    'title': title,
+                    'user': user,
+                    'place': place,
+                    'time': datetime.now().strftime('%Y-%m-%d %H:%M')
+                })
                 self.send_response(204)
             else:
                 self.send_response(400)

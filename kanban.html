@@ -15,7 +15,9 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
 </head>
 <body>
 <div class="new-task">
-  <input type="text" id="newTask" placeholder="Новая задача">
+  <input type="text" id="newTask" placeholder="Название задачи">
+  <input type="text" id="newUser" placeholder="Фамилия и имя">
+  <input type="text" id="newPlace" placeholder="Площадка">
   <button id="addTask">Добавить</button>
 </div>
 <div class="board">
@@ -49,11 +51,12 @@ const columns = document.querySelectorAll('.tasks');
 let draggedItem = null;
 let draggedFrom = null;
 
-function createTask(text) {
+function createTask(task) {
   const div = document.createElement('div');
   div.className = 'task';
   div.draggable = true;
-  div.textContent = text;
+  div.dataset.task = JSON.stringify(task);
+  div.innerHTML = `<strong>${task.title}</strong><br>${task.user}<br><small>${task.time} ${task.place}</small>`;
   div.addEventListener('dragstart', handleDragStart);
   return div;
 }
@@ -74,7 +77,7 @@ function handleDrop(e) {
     fetch('/move', {
       method: 'POST',
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: `task=${encodeURIComponent(draggedItem.textContent)}&from=${draggedFrom}&to=${this.parentElement.dataset.column}`
+      body: `task=${encodeURIComponent(draggedItem.dataset.task)}&from=${draggedFrom}&to=${this.parentElement.dataset.column}`
     });
     draggedItem = null;
   }
@@ -92,17 +95,21 @@ function loadTasks() {
 }
 
 function addTask() {
-  const input = document.getElementById('newTask');
-  const text = input.value.trim();
-  if (!text) return;
+  const title = document.getElementById('newTask').value.trim();
+  const user = document.getElementById('newUser').value.trim();
+  const place = document.getElementById('newPlace').value.trim();
+  if (!title || !user) return;
+  const task = {title, user, place, time: new Date().toLocaleString()};
   const container = document.querySelector('[data-column="buy"] .tasks');
-  container.appendChild(createTask(text));
+  container.appendChild(createTask(task));
   fetch('/add', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: `task=${encodeURIComponent(text)}&column=buy`
+    body: `title=${encodeURIComponent(title)}&user=${encodeURIComponent(user)}&place=${encodeURIComponent(place)}&column=buy`
   });
-  input.value = '';
+  document.getElementById('newTask').value = '';
+  document.getElementById('newUser').value = '';
+  document.getElementById('newPlace').value = '';
 }
 
 document.getElementById('addTask').addEventListener('click', addTask);
